@@ -1,0 +1,163 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Theme Variables ────────────────────────────── */
+
+:root,
+[data-theme="dark"] {
+  --bg:               #0d0d0d;
+  --bg-header:        #111111;
+  --bg-surface:       #161616;
+  --bg-surface-2:     #1c1c1c;
+  --bg-input:         #161616;
+  --bg-badge:         #1e1e1e;
+  --border:           #242424;
+  --border-2:         #1a1a1a;
+  --border-subtle:    #1f1f1f;
+  --text:             #e2e2e2;
+  --text-2:           #aaa;
+  --text-muted:       #666;
+  --text-dim:         #444;
+  --text-placeholder: #3a3a3a;
+  --accent:           #5b9cf6;
+  --accent-bg:        #2a4fa0;
+  --accent-dim:       #1a3a6a;
+  --user-bg:          #1a3a6a;
+  --user-text:        #dce9ff;
+  --user-border:      #234080;
+  --shadow:           rgba(0, 0, 0, 0.5);
+  --overlay:          rgba(10, 10, 10, 0.92);
+  --scrollbar:        #2e2e2e;
+  --scrollbar-hover:  #444;
+}
+
+[data-theme="light"] {
+  --bg:               #f0f2f5;
+  --bg-header:        #ffffff;
+  --bg-surface:       #ffffff;
+  --bg-surface-2:     #f7f8fa;
+  --bg-input:         #ffffff;
+  --bg-badge:         #f0f0f0;
+  --border:           #e0e0e0;
+  --border-2:         #ebebeb;
+  --border-subtle:    #e8e8e8;
+  --text:             #1a1a1a;
+  --text-2:           #555;
+  --text-muted:       #888;
+  --text-dim:         #bbb;
+  --text-placeholder: #bbb;
+  --accent:           #2563eb;
+  --accent-bg:        #2563eb;
+  --accent-dim:       #eff6ff;
+  --user-bg:          #2563eb;
+  --user-text:        #ffffff;
+  --user-border:      #1d4ed8;
+  --shadow:           rgba(0, 0, 0, 0.08);
+  --overlay:          rgba(240, 242, 245, 0.92);
+  --scrollbar:        #d0d0d0;
+  --scrollbar-hover:  #aaa;
+}
+
+/* ── Base ───────────────────────────────────────── */
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--bg);
+  color: var(--text);
+  transition: background-color 0.2s, color 0.2s;
+}
+
+/* ── Scrollbar ──────────────────────────────────── */
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
+
+/* ── Prose (markdown) ───────────────────────────── */
+/* Override Tailwind typography CSS vars so both themes work */
+
+.prose {
+  --tw-prose-body:        var(--text);
+  --tw-prose-headings:    var(--text);
+  --tw-prose-bold:        var(--text);
+  --tw-prose-links:       var(--accent);
+  --tw-prose-code:        var(--text-2);
+  --tw-prose-quotes:      var(--text-muted);
+  --tw-prose-quote-borders: var(--border);
+  --tw-prose-captions:    var(--text-muted);
+  --tw-prose-th-borders:  var(--border);
+  --tw-prose-td-borders:  var(--border-2);
+  --tw-prose-pre-bg:      var(--bg-surface-2);
+  color: var(--text);
+}
+
+.prose h1, .prose h2, .prose h3, .prose h4 {
+  color: var(--text);
+  margin-top: 1.2em;
+  margin-bottom: 0.4em;
+}
+
+.prose p { @apply mb-3; line-height: 1.7; }
+.prose ul, .prose ol { @apply mb-3 pl-5; }
+.prose li { @apply mb-1; }
+
+.prose code {
+  background: var(--bg-surface-2);
+  color: var(--text-2);
+  border: 1px solid var(--border);
+  @apply rounded px-1.5 py-0.5 text-sm font-mono;
+}
+
+.prose pre {
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border);
+  @apply rounded-lg p-4 text-sm overflow-x-auto mb-3;
+}
+
+.prose pre code { background: transparent; border: none; padding: 0; }
+
+.prose blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 1rem;
+  color: var(--text-muted);
+  margin: 0.75rem 0;
+}
+
+.prose a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+
+.prose table { width: 100%; border-collapse: collapse; @apply text-sm mb-3; }
+.prose th { background: var(--bg-surface-2); color: var(--text-muted); @apply px-3 py-2 text-left font-medium; border-bottom: 1px solid var(--border); }
+.prose td { @apply px-3 py-2; border-bottom: 1px solid var(--border-2); }
+.prose hr { border-color: var(--border); @apply my-4; }
+
+/* ── Streaming cursor ───────────────────────────── */
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+.streaming-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: var(--accent);
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  border-radius: 1px;
+  animation: blink 0.9s ease-in-out infinite;
+}
+
+/* ── Settings panel slide animation ─────────────── */
+
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+.settings-panel {
+  animation: slideIn 0.2s ease-out;
+}
