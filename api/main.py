@@ -11,8 +11,6 @@ from watchdog.observers import Observer
 
 from api.config import get_settings
 from api.routers import chat, health, index, search
-from api.services.retriever import Retriever
-from indexer.pipeline import IndexPipeline
 
 DEBOUNCE_SECONDS = 5  # 연속 저장 대비 디바운스
 
@@ -23,7 +21,7 @@ class _MDChangeHandler(FileSystemEventHandler):
     서버 재기동 없이 실시간으로 지식 베이스 업데이트.
     """
 
-    def __init__(self, pipeline: IndexPipeline, docs_root: Path, exclude_dirs: set[str]):
+    def __init__(self, pipeline, docs_root: Path, exclude_dirs: set[str]):
         self._pipeline = pipeline
         self._docs_root = docs_root
         self._exclude_dirs = exclude_dirs
@@ -96,44 +94,59 @@ async def lifespan(app: FastAPI):
     settings.lancedb_path.mkdir(parents=True, exist_ok=True)
     settings.tracker_db_path.parent.mkdir(parents=True, exist_ok=True)
 
-    pipeline = IndexPipeline(
-        docs_path=settings.docs_path,
-        db_path=settings.lancedb_path,
-        tracker_db_path=settings.tracker_db_path,
-        embed_model=settings.ollama_embed_model,
-        ollama_host=settings.ollama_host,
-        chunk_max_chars=settings.chunk_max_chars,
-        chunk_overlap_chars=settings.chunk_overlap_chars,
-        chunk_min_chars=settings.chunk_min_chars,
-        exclude_dirs=settings.exclude_dirs_set,
-    )
-
-    retriever = Retriever(
-        store=pipeline.store,
-        embed_model=settings.ollama_embed_model,
-        ollama_host=settings.ollama_host,
-    )
-
-    app.state.pipeline = pipeline
-    app.state.retriever = retriever
+    app.state.pipeline = None
+    app.state.retriever = None
+    app.state.pipeline_ready = False
+    app.state.pipeline_error = None
 
     # 파일 감시 — 서버 시작을 블로킹하지 않도록 백그라운드 스레드에서 초기화
     observer: Observer | None = None
+    try:
+        from api.services.retriever import Retriever
+        from indexer.pipeline import IndexPipeline
 
-    def _start_watcher():
-        nonlocal observer
-        try:
-            handler = _MDChangeHandler(pipeline, settings.docs_path, settings.exclude_dirs_set)
-            obs = Observer()
-            obs.schedule(handler, str(settings.docs_path), recursive=True)
-            obs.start()
-            observer = obs
-            print(f"[감시] 시작: {settings.docs_path} (변경 감지 후 {DEBOUNCE_SECONDS}초 뒤 자동 재인덱싱)")
-        except Exception as e:
-            print(f"[감시] 시작 실패 (파일 감시 비활성화): {e}")
+        pipeline = IndexPipeline(
+            docs_path=settings.docs_path,
+            db_path=settings.lancedb_path,
+            tracker_db_path=settings.tracker_db_path,
+            embed_model=settings.ollama_embed_model,
+            ollama_host=settings.ollama_host,
+            chunk_max_chars=settings.chunk_max_chars,
+            chunk_overlap_chars=settings.chunk_overlap_chars,
+            chunk_min_chars=settings.chunk_min_chars,
+            exclude_dirs=settings.exclude_dirs_set,
+        )
 
-    watcher_thread = threading.Thread(target=_start_watcher, daemon=True)
-    watcher_thread.start()
+        retriever = Retriever(
+            store=pipeline.store,
+            embed_model=settings.ollama_embed_model,
+            ollama_host=settings.ollama_host,
+            docs_path=settings.docs_path,
+        )
+
+        pipeline.warm_store_async()
+
+        app.state.pipeline = pipeline
+        app.state.retriever = retriever
+        app.state.pipeline_ready = True
+
+        def _start_watcher():
+            nonlocal observer
+            try:
+                handler = _MDChangeHandler(pipeline, settings.docs_path, settings.exclude_dirs_set)
+                obs = Observer()
+                obs.schedule(handler, str(settings.docs_path), recursive=True)
+                obs.start()
+                observer = obs
+                print(f"[감시] 시작: {settings.docs_path} (변경 감지 후 {DEBOUNCE_SECONDS}초 뒤 자동 재인덱싱)")
+            except Exception as e:
+                print(f"[감시] 시작 실패 (파일 감시 비활성화): {e}")
+
+        watcher_thread = threading.Thread(target=_start_watcher, daemon=True)
+        watcher_thread.start()
+    except Exception as e:
+        app.state.pipeline_error = str(e)
+        print(f"[초기화] 실패: {e}")
 
     yield
 

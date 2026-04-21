@@ -1,13 +1,8 @@
 from __future__ import annotations
 
 import uuid
-from typing import Annotated
-
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
-
-from api.config import Settings, get_settings
-from indexer.pipeline import IndexPipeline, IndexStatus
 
 router = APIRouter(prefix="/api/v1/index", tags=["index"])
 
@@ -34,14 +29,18 @@ class StatusResponse(BaseModel):
     unchanged_files: int
 
 
-def _get_pipeline(request: Request) -> IndexPipeline:
-    return request.app.state.pipeline
+def _get_pipeline(request: Request):
+    pipeline = getattr(request.app.state, "pipeline", None)
+    if pipeline is None:
+        detail = getattr(request.app.state, "pipeline_error", None) or "Knowledge base is still initializing"
+        raise HTTPException(status_code=503, detail=detail)
+    return pipeline
 
 
 @router.post("/trigger", response_model=TriggerResponse)
 async def trigger_index(
     body: TriggerRequest,
-    pipeline: Annotated[IndexPipeline, Depends(_get_pipeline)],
+    pipeline=Depends(_get_pipeline),
 ):
     if pipeline.is_running():
         raise HTTPException(status_code=409, detail="Indexing already in progress")
@@ -53,8 +52,23 @@ async def trigger_index(
 
 @router.get("/status", response_model=StatusResponse)
 async def index_status(
-    pipeline: Annotated[IndexPipeline, Depends(_get_pipeline)],
+    request: Request,
 ):
+    pipeline = getattr(request.app.state, "pipeline", None)
+    if pipeline is None:
+        return StatusResponse(
+            status="initializing",
+            total_files=0,
+            processed_files=0,
+            current_file=None,
+            total_chunks=0,
+            error=getattr(request.app.state, "pipeline_error", None),
+            new_files=0,
+            modified_files=0,
+            deleted_files=0,
+            unchanged_files=0,
+        )
+
     p = pipeline.progress
     diff = p.last_diff
     return StatusResponse(
@@ -62,7 +76,7 @@ async def index_status(
         total_files=p.total_files,
         processed_files=p.processed_files,
         current_file=p.current_file,
-        total_chunks=pipeline.store.count(),
+        total_chunks=pipeline.store.count() if pipeline.store.is_ready() else 0,
         error=p.error,
         new_files=len(diff.new) if diff else 0,
         modified_files=len(diff.modified) if diff else 0,
@@ -74,7 +88,7 @@ async def index_status(
 @router.delete("/file")
 async def delete_file(
     file_path: str,
-    pipeline: Annotated[IndexPipeline, Depends(_get_pipeline)],
+    pipeline=Depends(_get_pipeline),
 ):
     deleted = pipeline.store.delete_by_file_path(file_path)
     pipeline.tracker.delete_record(file_path)

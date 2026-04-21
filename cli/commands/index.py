@@ -8,14 +8,14 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 from rich.table import Table
 
-from api.config import get_settings
-from indexer.pipeline import IndexPipeline, IndexProgress
-
 app = typer.Typer(help="Index markdown documents")
 console = Console()
 
 
-def _make_pipeline(docs_path: Optional[Path] = None) -> IndexPipeline:
+def _make_pipeline(docs_path: Optional[Path] = None):
+    from api.config import get_settings
+    from indexer.pipeline import IndexPipeline
+
     settings = get_settings()
     return IndexPipeline(
         docs_path=docs_path or settings.docs_path,
@@ -55,7 +55,7 @@ def index(
         _watch_loop(pipeline, effective_docs, verbose=verbose)
 
 
-def _run_index(pipeline: IndexPipeline, force: bool = False, verbose: bool = False) -> None:
+def _run_index(pipeline, force: bool = False, verbose: bool = False) -> None:
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
@@ -66,7 +66,7 @@ def _run_index(pipeline: IndexPipeline, force: bool = False, verbose: bool = Fal
     ) as progress:
         task = progress.add_task("Scanning files...", total=None)
 
-        def on_progress(p: IndexProgress):
+        def on_progress(p):
             if p.total_files > 0:
                 progress.update(
                     task,

@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from typing import AsyncGenerator
 
-import ollama
-
 
 async def stream_chat(
     messages: list[dict[str, str]],
@@ -11,6 +9,8 @@ async def stream_chat(
     ollama_host: str,
 ) -> AsyncGenerator[str, None]:
     """Async generator that yields text tokens from Ollama streaming chat."""
+    import ollama
+
     client = ollama.AsyncClient(host=ollama_host)
     async for part in await client.chat(
         model=model,
@@ -28,12 +28,16 @@ async def chat(
     ollama_host: str,
 ) -> str:
     """Non-streaming chat, returns full response."""
+    import ollama
+
     client = ollama.AsyncClient(host=ollama_host)
     response = await client.chat(model=model, messages=messages, stream=False)
     return response.message.content or ""
 
 
 async def list_models(ollama_host: str) -> list[str]:
+    import ollama
+
     client = ollama.AsyncClient(host=ollama_host)
     try:
         result = await client.list()

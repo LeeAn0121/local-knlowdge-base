@@ -9,11 +9,6 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.table import Table
 
-from api.config import get_settings
-from api.services.context_builder import build_prompt, format_sources
-from indexer.embedder import embed_query
-from vectordb.store import VectorStore
-
 console = Console()
 
 
@@ -38,6 +33,11 @@ async def _query(
     as_json: bool = False,
     stream: bool = True,
 ):
+    from api.config import get_settings
+    from api.services.context_builder import build_prompt, format_sources
+    from indexer.embedder import embed_query
+    from vectordb.store import VectorStore
+
     settings = get_settings()
     llm_model = model or settings.ollama_llm_model
 

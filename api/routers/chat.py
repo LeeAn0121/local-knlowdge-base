@@ -4,7 +4,7 @@ import asyncio
 import json
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
@@ -37,7 +37,11 @@ class ChatResponse(BaseModel):
 
 
 def _get_retriever(request: Request) -> Retriever:
-    return request.app.state.retriever
+    retriever = getattr(request.app.state, "retriever", None)
+    if retriever is None:
+        detail = getattr(request.app.state, "pipeline_error", None) or "Knowledge base is still initializing"
+        raise HTTPException(status_code=503, detail=detail)
+    return retriever
 
 
 @router.post("/chat", response_model=ChatResponse)

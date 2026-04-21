@@ -77,6 +77,9 @@ class IndexPipeline:
     def store(self) -> VectorStore:
         return self._store
 
+    def warm_store_async(self) -> None:
+        self._store.warmup_async()
+
     @property
     def tracker(self) -> FileTracker:
         return self._tracker

@@ -4,8 +4,6 @@ from __future__ import annotations
 import time
 from typing import Generator
 
-import ollama
-
 from vectordb.schema import VECTOR_DIM
 
 DEFAULT_BATCH_SIZE = 64   # 32 → 64: Ollama 처리량에 맞게 증가
@@ -13,10 +11,12 @@ MAX_RETRIES = 3
 RETRY_DELAY = 2.0
 
 # 클라이언트 캐시: host별 재사용 (매 호출마다 새 객체 생성 방지)
-_client_cache: dict[str, ollama.Client] = {}
+_client_cache: dict[str, object] = {}
 
 
-def _get_client(host: str) -> ollama.Client:
+def _get_client(host: str):
+    import ollama
+
     if host not in _client_cache:
         _client_cache[host] = ollama.Client(host=host)
     return _client_cache[host]
